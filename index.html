@@ -339,7 +339,52 @@
     }
     .simplified-family-row:last-child { border-bottom: none; }
     .simplified-family-name { font-weight: 600; }
-    .simplified-family-count { color: #718096; margin-left: .3rem; }
+    .simplified-count-control {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-left: auto;
+      margin-right: 1rem;
+    }
+    .count-step-btn {
+      width: 2rem;
+      height: 2rem;
+      border: 1px solid #cbd5e0;
+      background: #f7fafc;
+      color: #4a5568;
+      font-size: 1.1rem;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .count-step-btn:hover { background: #e2e8f0; color: #2d3748; }
+    .count-step-btn:active { background: #cbd5e0; }
+    .count-step-btn:disabled { opacity: .35; cursor: not-allowed; }
+    .count-step-btn.minus { border-radius: 6px 0 0 6px; border-right: none; }
+    .count-step-btn.plus  { border-radius: 0 6px 6px 0; border-left: none; }
+    .simplified-count-input {
+      width: 42px;
+      border: 1px solid #cbd5e0;
+      border-radius: 0;
+      padding: .15rem .3rem;
+      font-size: .88rem;
+      font-weight: 600;
+      text-align: center;
+      color: #4a5568;
+      outline: none;
+      height: 2rem;
+      transition: border-color .15s;
+      -moz-appearance: textfield;
+    }
+    .simplified-count-input::-webkit-inner-spin-button,
+    .simplified-count-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .simplified-count-input:focus { border-color: #4299e1; z-index: 1; position: relative; }
+    .simplified-count-input.input-error { border-color: #c53030; background: #fff5f5; }
   </style>
 </head>
 <body>
@@ -449,6 +494,36 @@
     const group = groups.find(g => g.id === groupId);
     if (!group) return;
     group.passengers.splice(idx, 1);
+    saveState(groups);
+    render();
+  }
+
+  function stepPassengerCount(groupId, idx, delta) {
+    const groups = loadState();
+    const group = groups.find(g => g.id === groupId);
+    if (!group) return;
+    const othersUsed = group.passengers.reduce((s, p, i) => i !== idx ? s + p.count : s, 0);
+    const newCount = group.passengers[idx].count + delta;
+    if (newCount < 1 || othersUsed + newCount > group.capacity) return;
+    group.passengers[idx].count = newCount;
+    saveState(groups);
+    render();
+  }
+
+  function updatePassengerCount(groupId, idx, inputEl) {
+    const groups = loadState();
+    const group = groups.find(g => g.id === groupId);
+    if (!group) return;
+    const newCount = parseInt(inputEl.value, 10);
+    const othersUsed = group.passengers.reduce((s, p, i) => i !== idx ? s + p.count : s, 0);
+    if (!newCount || newCount < 1 || othersUsed + newCount > group.capacity) {
+      inputEl.classList.add('input-error');
+      inputEl.value = group.passengers[idx].count;
+      setTimeout(() => { inputEl.classList.remove('input-error'); inputEl.value = group.passengers[idx].count; }, 800);
+      return;
+    }
+    inputEl.classList.remove('input-error');
+    group.passengers[idx].count = newCount;
     saveState(groups);
     render();
   }
@@ -576,16 +651,36 @@
     const remaining = group.capacity - used;
     const carTheme = LIFE_CARS[(num - 1) % LIFE_CARS.length];
 
-    const familyRows = group.passengers.map((p, i) => `
-      <div class="simplified-family-row">
-        <span class="simplified-family-name">${esc(p.lastName)}<span class="simplified-family-count">(${p.count})</span></span>
-        <button class="btn-delete-passenger" title="Remove ${esc(p.lastName)}" onclick="removePassenger('${group.id}', ${i})">✕</button>
-      </div>
-    `).join('');
+    const familyRows = group.passengers.map((p, i) => {
+      const othersUsed = group.passengers.reduce((s, p2, idx) => idx !== i ? s + p2.count : s, 0);
+      const maxForThis = group.capacity - othersUsed;
+      return `
+        <div class="simplified-family-row">
+          <span class="simplified-family-name">${esc(p.lastName)}</span>
+          <div class="simplified-count-control">
+            <button class="count-step-btn minus" onclick="stepPassengerCount('${group.id}', ${i}, -1)" ${p.count <= 1 ? 'disabled' : ''}>−</button>
+            <input class="simplified-count-input" type="number" min="1" max="${maxForThis}" value="${p.count}"
+              title="People count for ${esc(p.lastName)}"
+              onchange="updatePassengerCount('${group.id}', ${i}, this)" />
+            <button class="count-step-btn plus" onclick="stepPassengerCount('${group.id}', ${i}, 1)" ${p.count >= maxForThis ? 'disabled' : ''}>+</button>
+          </div>
+          <button class="btn-delete-passenger" title="Remove ${esc(p.lastName)}" onclick="removePassenger('${group.id}', ${i})">✕</button>
+        </div>
+      `;
+    }).join('');
 
     const footerLabel = remaining === 0
       ? `Car ${num} &mdash; Full`
       : `Car ${num} &mdash; ${remaining} seat${remaining !== 1 ? 's' : ''} left`;
+
+    const addForm = remaining === 0 ? '' : `
+      <div class="add-passenger-form" style="background:#f7fafc;" id="form-${group.id}">
+        <input class="input-name" type="text" placeholder="Last name" id="name-${group.id}" />
+        <input class="input-count" type="number" min="1" max="${remaining}" value="1" id="count-${group.id}" />
+        <button class="btn-add-passenger" onclick="handleAddPassenger('${group.id}')">Add</button>
+        <span class="form-error" id="err-${group.id}"></span>
+      </div>
+    `;
 
     return `
       <div class="car-card simplified" style="border: 2px solid ${carTheme.dark};">
@@ -594,6 +689,7 @@
           <button class="btn-delete-car" title="Remove car" onclick="removeGroup('${group.id}')" style="color:rgba(255,255,255,.75);">🗑</button>
         </div>
         ${group.passengers.length > 0 ? `<div class="simplified-families">${familyRows}</div>` : ''}
+        ${addForm}
       </div>
     `;
   }
