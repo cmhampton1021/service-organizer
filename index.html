@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Car Group Organizer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #2b6cb0;
+      color: #fff;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 6px rgba(0,0,0,.2);
+    }
+
+    header h1 { font-size: 1.3rem; font-weight: 700; }
+
+    .btn-clear {
+      background: rgba(255,255,255,.15);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.4);
+      border-radius: 6px;
+      padding: .4rem .9rem;
+      font-size: .85rem;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-clear:hover { background: rgba(255,255,255,.25); }
+
+    main { max-width: 900px; margin: 0 auto; padding: 1.5rem 1.5rem 12rem; }
+
+    /* Add car panel */
+    .add-car-panel {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,.1);
+      margin-bottom: 1.75rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .add-car-panel label { font-weight: 600; font-size: .95rem; white-space: nowrap; }
+
+    .capacity-btns { display: flex; gap: .4rem; flex-wrap: wrap; }
+
+    .capacity-btn {
+      width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 6px;
+      border: 2px solid #cbd5e0;
+      background: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color .15s, background .15s, color .15s;
+    }
+    .capacity-btn.selected {
+      border-color: #2b6cb0;
+      background: #2b6cb0;
+      color: #fff;
+    }
+    .capacity-btn:hover:not(.selected) { border-color: #4299e1; background: #ebf8ff; }
+
+    .btn-primary {
+      background: #2b6cb0;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: .55rem 1.2rem;
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+      white-space: nowrap;
+    }
+    .btn-primary:hover { background: #2c5282; }
+    .btn-primary:disabled { background: #a0aec0; cursor: not-allowed; }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      color: #718096;
+      padding: 3rem 1rem;
+      font-size: 1rem;
+    }
+
+    /* Car cards grid */
+    .cars-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1.25rem;
+    }
+
+    /* ── All car cards ───────────────────────────────────────────────────── */
+    .car-card {
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 6px 18px rgba(0,0,0,.18), 0 1px 4px rgba(0,0,0,.12);
+    }
+
+    .btn-delete-car {
+      background: none;
+      border: none;
+      color: #a0aec0;
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: .1rem .3rem;
+      border-radius: 4px;
+      transition: color .15s, background .15s;
+    }
+    .btn-delete-car:hover { color: #c53030; background: rgba(255,255,255,.15); }
+
+    /* Passenger list inside life card */
+    .life-passenger-list { padding: .3rem 1rem .1rem; }
+    .passenger-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .3rem 0;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      font-size: .9rem;
+    }
+    .passenger-row:last-child { border-bottom: none; }
+    .passenger-name { font-weight: 600; }
+    .passenger-count { color: #718096; margin-left: .3rem; }
+    .btn-delete-passenger {
+      background: none;
+      border: none;
+      color: #cbd5e0;
+      cursor: pointer;
+      font-size: .95rem;
+      padding: .1rem .25rem;
+      border-radius: 4px;
+      transition: color .15s, background .15s;
+    }
+    .btn-delete-passenger:hover { color: #c53030; background: #fff5f5; }
+
+    /* Add passenger form */
+    .add-passenger-form {
+      padding: .6rem 1rem .9rem;
+      border-top: 1px solid rgba(0,0,0,.08);
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+    .add-passenger-form input {
+      border: 1px solid #cbd5e0;
+      border-radius: 6px;
+      padding: .4rem .65rem;
+      font-size: .9rem;
+      outline: none;
+      transition: border-color .15s;
+      background: #fff;
+    }
+    .add-passenger-form input:focus { border-color: #4299e1; }
+    .input-name { flex: 1 1 120px; min-width: 100px; }
+    .input-count { width: 70px; }
+    .btn-add-passenger {
+      background: #48bb78;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: .4rem .9rem;
+      font-size: .88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+      white-space: nowrap;
+    }
+    .btn-add-passenger:hover { background: #38a169; }
+    .form-error {
+      width: 100%;
+      color: #c53030;
+      font-size: .8rem;
+      margin-top: .15rem;
+    }
+
+    /* ── Game of Life full car ───────────────────────────────────────────── */
+    .car-card.is-full {
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 6px 18px rgba(0,0,0,.18), 0 1px 4px rgba(0,0,0,.12);
+    }
+
+    .life-car-banner {
+      position: relative;
+      background: #1b2535;
+      padding: .6rem .6rem .3rem;
+    }
+
+    .life-car-svg {
+      width: 100%;
+      height: auto;
+      display: block;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,.4));
+    }
+
+    .btn-delete-car.life-delete {
+      position: absolute;
+      top: .45rem;
+      right: .45rem;
+      background: rgba(0,0,0,.3);
+      color: rgba(255,255,255,.75);
+      border-radius: 5px;
+    }
+    .btn-delete-car.life-delete:hover { background: rgba(180,0,0,.55); color: #fff; }
+
+    .life-passengers {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .6rem 1.1rem;
+      padding: .9rem 1.1rem .75rem;
+      justify-content: center;
+    }
+
+    .life-family {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .2rem;
+    }
+
+    .life-family .btn-delete-passenger {
+      font-size: .7rem;
+      color: #a0aec0;
+      padding: .05rem .3rem;
+    }
+    .life-family .btn-delete-passenger:hover { color: #c53030; background: rgba(197,48,48,.08); }
+
+    .life-pegs {
+      display: flex;
+      gap: 3px;
+      align-items: flex-end;
+    }
+
+    .peg-svg { display: block; }
+
+    .life-family-name {
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .02em;
+      text-align: center;
+    }
+
+    .life-car-footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: .45rem 1rem;
+      font-size: .8rem;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🚗 Car Group Organizer</h1>
+  <button class="btn-clear" onclick="clearSession()">Clear &amp; Start Over</button>
+</header>
+
+<main>
+  <div class="add-car-panel">
+    <label>Car capacity:</label>
+    <div class="capacity-btns" id="capacityBtns"></div>
+    <button class="btn-primary" id="btnAddCar" onclick="handleAddCar()" disabled>Add Car</button>
+  </div>
+  <div id="groupsContainer"></div>
+</main>
+
+<script>
+  const STORAGE_KEY = 'carGroups';
+  const CAPACITIES = [2, 4, 5, 6, 7, 8];
+  let selectedCapacity = null;
+
+  // Game of Life car colors: body, dark accent, light bg, text
+  const LIFE_CARS = [
+    { body: '#f56565', dark: '#9b2c2c', light: '#fff5f5', text: '#63171b' },
+    { body: '#4299e1', dark: '#2a4365', light: '#ebf8ff', text: '#1a365d' },
+    { body: '#f6c90e', dark: '#744210', light: '#fffff0', text: '#5f370e' },
+    { body: '#48bb78', dark: '#22543d', light: '#f0fff4', text: '#1c4532' },
+    { body: '#ed8936', dark: '#7b341e', light: '#fffaf0', text: '#652b19' },
+    { body: '#ed64a6', dark: '#702459', light: '#fff5f7', text: '#521b41' },
+  ];
+
+  // Peg colors — one color family per passenger group
+  const PEG_COLORS = [
+    '#f687b3', // pink
+    '#63b3ed', // sky blue
+    '#9ae6b4', // mint
+    '#faf089', // yellow
+    '#d6bcfa', // lavender
+    '#fbd38d', // peach
+    '#fc8181', // salmon
+    '#76e4f7', // cyan
+  ];
+
+  // ── State ────────────────────────────────────────────────────────────────
+
+  function loadState() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { return []; }
+  }
+
+  function saveState(groups) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
+  }
+
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2);
+  }
+
+  // ── Mutations ────────────────────────────────────────────────────────────
+
+  function addGroup(capacity) {
+    const groups = loadState();
+    groups.push({ id: uid(), capacity, passengers: [] });
+    saveState(groups);
+    render();
+  }
+
+  function addPassenger(groupId, lastName, count) {
+    const groups = loadState();
+    const group = groups.find(g => g.id === groupId);
+    if (!group) return null;
+    const used = group.passengers.reduce((s, p) => s + p.count, 0);
+    if (used + count > group.capacity) return 'over';
+    group.passengers.push({ lastName: lastName.trim(), count });
+    saveState(groups);
+    render();
+    return 'ok';
+  }
+
+  function removePassenger(groupId, idx) {
+    const groups = loadState();
+    const group = groups.find(g => g.id === groupId);
+    if (!group) return;
+    group.passengers.splice(idx, 1);
+    saveState(groups);
+    render();
+  }
+
+  function removeGroup(groupId) {
+    const groups = loadState().filter(g => g.id !== groupId);
+    saveState(groups);
+    render();
+  }
+
+  function clearSession() {
+    if (!confirm('Clear all car groups and start a new session?')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    render();
+  }
+
+  // ── Capacity selector ────────────────────────────────────────────────────
+
+  function initCapacityBtns() {
+    const wrap = document.getElementById('capacityBtns');
+    wrap.innerHTML = CAPACITIES.map(c =>
+      `<button class="capacity-btn" data-cap="${c}" onclick="selectCapacity(${c})">${c}</button>`
+    ).join('');
+  }
+
+  function selectCapacity(cap) {
+    selectedCapacity = cap;
+    document.querySelectorAll('.capacity-btn').forEach(b => {
+      b.classList.toggle('selected', +b.dataset.cap === cap);
+    });
+    document.getElementById('btnAddCar').disabled = false;
+  }
+
+  function handleAddCar() {
+    if (!selectedCapacity) return;
+    addGroup(selectedCapacity);
+    selectedCapacity = null;
+    document.querySelectorAll('.capacity-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('btnAddCar').disabled = true;
+  }
+
+  // ── SVG helpers ──────────────────────────────────────────────────────────
+
+  function carSVG(body, dark) {
+    // Side-view Game of Life style car
+    return `<svg class="life-car-svg" viewBox="0 0 320 112" xmlns="http://www.w3.org/2000/svg">
+      <!-- Road shadow -->
+      <ellipse cx="160" cy="108" rx="148" ry="6" fill="rgba(0,0,0,0.25)"/>
+      <!-- Car body -->
+      <rect x="12" y="54" width="296" height="42" rx="11" fill="${body}"/>
+      <!-- Body lower shadow -->
+      <rect x="12" y="80" width="296" height="16" rx="11" fill="rgba(0,0,0,0.1)"/>
+      <!-- Cabin roof -->
+      <path d="M82,54 Q90,14 112,11 L208,11 Q230,14 238,54 Z" fill="${body}"/>
+      <!-- Cabin roof highlight -->
+      <path d="M82,54 Q90,14 112,11 L208,11 Q230,14 238,54 Z" fill="rgba(255,255,255,0.12)"/>
+      <!-- Left window -->
+      <path d="M97,52 Q104,22 118,17 L154,17 L154,52 Z" fill="rgba(180,235,255,0.55)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+      <!-- Right window -->
+      <path d="M166,52 L166,17 L202,17 Q216,22 223,52 Z" fill="rgba(180,235,255,0.55)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+      <!-- B-pillar -->
+      <rect x="154" y="16" width="12" height="37" fill="${body}" opacity="0.9"/>
+      <!-- Body highlight stripe -->
+      <rect x="14" y="56" width="292" height="5" rx="2" fill="rgba(255,255,255,0.22)"/>
+      <!-- Left wheel well -->
+      <ellipse cx="83" cy="96" rx="30" ry="12" fill="rgba(0,0,0,0.18)"/>
+      <!-- Right wheel well -->
+      <ellipse cx="237" cy="96" rx="30" ry="12" fill="rgba(0,0,0,0.18)"/>
+      <!-- Wheels -->
+      <circle cx="83" cy="94" r="20" fill="#1a202c"/>
+      <circle cx="237" cy="94" r="20" fill="#1a202c"/>
+      <!-- Tire highlight -->
+      <circle cx="83" cy="94" r="10" fill="#4a5568"/>
+      <circle cx="237" cy="94" r="10" fill="#4a5568"/>
+      <!-- Hub caps -->
+      <circle cx="83" cy="94" r="5" fill="#a0aec0"/>
+      <circle cx="237" cy="94" r="5" fill="#a0aec0"/>
+      <!-- Headlight -->
+      <ellipse cx="299" cy="67" rx="10" ry="7" fill="rgba(255,255,200,0.9)"/>
+      <ellipse cx="299" cy="67" rx="6" ry="4" fill="rgba(255,255,255,0.95)"/>
+      <!-- Taillight -->
+      <ellipse cx="21" cy="67" rx="8" ry="6" fill="rgba(255,60,60,0.85)"/>
+      <!-- Front bumper -->
+      <rect x="303" y="74" width="9" height="12" rx="3" fill="${dark}"/>
+      <!-- Rear bumper -->
+      <rect x="8" y="74" width="9" height="12" rx="3" fill="${dark}"/>
+      <!-- Door line -->
+      <line x1="160" y1="56" x2="160" y2="93" stroke="rgba(0,0,0,0.12)" stroke-width="2"/>
+      <!-- Side trim stripe -->
+      <rect x="14" y="72" width="292" height="3" rx="1" fill="rgba(255,255,255,0.18)"/>
+    </svg>`;
+  }
+
+  function pegSVG(color) {
+    // Game of Life person peg: round head + tapered body
+    const shadow = 'rgba(0,0,0,0.2)';
+    return `<svg class="peg-svg" width="17" height="30" viewBox="0 0 17 30" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="8.5" cy="6" r="5.5" fill="${color}" stroke="${shadow}" stroke-width="1"/>
+      <circle cx="7" cy="4.5" r="2" fill="rgba(255,255,255,0.3)"/>
+      <path d="M4,11 Q4.5,10 8.5,10 Q12.5,10 13,11 L12,26 Q10,28 8.5,28 Q7,28 5,26 Z" fill="${color}" stroke="${shadow}" stroke-width="1"/>
+      <path d="M4.5,11 Q5,10.5 8.5,10.5 L8.5,28 Q7,28 5,26 Z" fill="rgba(255,255,255,0.15)"/>
+    </svg>`;
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────
+
+  function render() {
+    const groups = loadState();
+    const container = document.getElementById('groupsContainer');
+
+    if (groups.length === 0) {
+      container.innerHTML = '<p class="empty-state">No car groups yet. Select a capacity above and click <strong>Add Car</strong> to get started.</p>';
+      return;
+    }
+
+    container.innerHTML = `<div class="cars-grid">${groups.map((g, i) => renderCard(g, i + 1)).join('')}</div>`;
+  }
+
+  function renderCard(group, num) {
+    const used = group.passengers.reduce((s, p) => s + p.count, 0);
+    const remaining = group.capacity - used;
+    const isFull = remaining === 0;
+    const carTheme = LIFE_CARS[(num - 1) % LIFE_CARS.length];
+
+    const familySections = group.passengers.map((p, i) => {
+      const pegColor = PEG_COLORS[i % PEG_COLORS.length];
+      const pegs = Array.from({ length: p.count }, () => pegSVG(pegColor)).join('');
+      return `
+        <div class="life-family">
+          <div class="life-pegs">${pegs}</div>
+          <div class="life-family-name" style="color:${carTheme.text}">${esc(p.lastName)}&nbsp;(${p.count})</div>
+          <button class="btn-delete-passenger" title="Remove ${esc(p.lastName)}" onclick="removePassenger('${group.id}', ${i})">✕</button>
+        </div>
+      `;
+    }).join('');
+
+    const addForm = isFull ? '' : `
+      <div class="add-passenger-form" style="background:${carTheme.light};" id="form-${group.id}">
+        <input class="input-name" type="text" placeholder="Last name" id="name-${group.id}" />
+        <input class="input-count" type="number" min="1" max="${remaining}" value="1" id="count-${group.id}" />
+        <button class="btn-add-passenger" onclick="handleAddPassenger('${group.id}')">Add</button>
+        <span class="form-error" id="err-${group.id}"></span>
+      </div>
+    `;
+
+    const footerLabel = isFull
+      ? `Car ${num} &mdash; ${group.capacity} seats &mdash; All Aboard! 🎉`
+      : `Car ${num} &mdash; ${group.capacity} seats &mdash; ${remaining} seat${remaining !== 1 ? 's' : ''} remaining`;
+
+    return `
+      <div class="car-card" style="border: 2px solid ${carTheme.dark};">
+        <div class="life-car-banner">
+          ${carSVG(carTheme.body, carTheme.dark)}
+          <button class="btn-delete-car life-delete" title="Remove car" onclick="removeGroup('${group.id}')">🗑</button>
+        </div>
+        ${group.passengers.length > 0 ? `
+          <div class="life-passengers" style="background:${carTheme.light};">
+            ${familySections}
+          </div>
+        ` : ''}
+        ${addForm}
+        <div class="life-car-footer" style="background:${carTheme.dark};">
+          ${footerLabel}
+        </div>
+      </div>
+    `;
+  }
+
+  function handleAddPassenger(groupId) {
+    const nameEl = document.getElementById(`name-${groupId}`);
+    const countEl = document.getElementById(`count-${groupId}`);
+    const errEl = document.getElementById(`err-${groupId}`);
+    const lastName = nameEl.value.trim();
+    const count = parseInt(countEl.value, 10);
+
+    errEl.textContent = '';
+
+    if (!lastName) { errEl.textContent = 'Please enter a last name.'; nameEl.focus(); return; }
+    if (!count || count < 1) { errEl.textContent = 'Enter a valid number of people.'; countEl.focus(); return; }
+
+    const result = addPassenger(groupId, lastName, count);
+    if (result === 'over') {
+      const groups = loadState();
+      const group = groups.find(g => g.id === groupId);
+      const used = group.passengers.reduce((s, p) => s + p.count, 0);
+      errEl.textContent = `Only ${group.capacity - used} seat(s) remaining.`;
+    }
+  }
+
+  function esc(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  initCapacityBtns();
+  render();
+</script>
+</body>
+</html>
