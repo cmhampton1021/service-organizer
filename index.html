@@ -651,7 +651,6 @@
     const remaining = group.capacity - used;
     const carTheme = LIFE_CARS[(num - 1) % LIFE_CARS.length];
 
-    const otherUsed = group.passengers.reduce((s, p, idx) => idx === 0 ? s : s + p.count, 0);
     const familyRows = group.passengers.map((p, i) => {
       const othersUsed = group.passengers.reduce((s, p2, idx) => idx !== i ? s + p2.count : s, 0);
       const maxForThis = group.capacity - othersUsed;
