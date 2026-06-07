@@ -269,6 +269,77 @@
       text-transform: uppercase;
       color: #fff;
     }
+
+    /* ── Simplified view toggle ─────────────────────────────────────────── */
+    .toggle-bar {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      margin-bottom: 1.25rem;
+    }
+    .toggle-label { font-size: .88rem; font-weight: 600; color: #4a5568; user-select: none; cursor: pointer; }
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 38px;
+      height: 22px;
+      cursor: pointer;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      background: #cbd5e0;
+      border-radius: 22px;
+      transition: background .2s;
+    }
+    .toggle-switch input:checked + .toggle-track { background: #2b6cb0; }
+    .toggle-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 16px;
+      height: 16px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,.3);
+      transition: transform .2s;
+    }
+    .toggle-switch input:checked ~ .toggle-thumb { transform: translateX(16px); }
+
+    /* ── Simplified card style ──────────────────────────────────────────── */
+    .car-card.simplified {
+      border-radius: 10px;
+      overflow: visible;
+    }
+    .simplified-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .5rem .8rem;
+      font-size: .9rem;
+      font-weight: 800;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: #fff;
+      border-radius: 8px 8px 0 0;
+    }
+    .simplified-families {
+      padding: .3rem .8rem .4rem;
+      background: #fff;
+      border-radius: 0 0 8px 8px;
+    }
+    .simplified-family-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .25rem 0;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: .88rem;
+    }
+    .simplified-family-row:last-child { border-bottom: none; }
+    .simplified-family-name { font-weight: 600; }
+    .simplified-family-count { color: #718096; margin-left: .3rem; }
   </style>
 </head>
 <body>
@@ -284,13 +355,36 @@
     <div class="capacity-btns" id="capacityBtns"></div>
     <button class="btn-primary" id="btnAddCar" onclick="handleAddCar()" disabled>Add Car</button>
   </div>
+  <div class="toggle-bar">
+    <label class="toggle-switch" title="Simplified view">
+      <input type="checkbox" id="simplifiedToggle" onchange="handleToggleChange(this.checked)" />
+      <div class="toggle-track"></div>
+      <div class="toggle-thumb"></div>
+    </label>
+    <span class="toggle-label" onclick="document.getElementById('simplifiedToggle').click()">Simplified view</span>
+  </div>
   <div id="groupsContainer"></div>
 </main>
 
 <script>
   const STORAGE_KEY = 'carGroups';
+  const SIMPLIFIED_KEY = 'simplifiedView';
   const CAPACITIES = [2, 4, 5, 6, 7, 8];
   let selectedCapacity = null;
+
+  function loadSimplified() {
+    try { return JSON.parse(localStorage.getItem(SIMPLIFIED_KEY)) === true; }
+    catch { return false; }
+  }
+
+  function saveSimplified(val) {
+    localStorage.setItem(SIMPLIFIED_KEY, JSON.stringify(val));
+  }
+
+  function handleToggleChange(checked) {
+    saveSimplified(checked);
+    render();
+  }
 
   // Game of Life car colors: body, dark accent, light bg, text
   const LIFE_CARS = [
@@ -369,6 +463,7 @@
     if (!confirm('Clear all car groups and start a new session?')) return;
     localStorage.removeItem(STORAGE_KEY);
     render();
+    // simplified view toggle persists intentionally
   }
 
   // ── Capacity selector ────────────────────────────────────────────────────
@@ -463,14 +558,44 @@
 
   function render() {
     const groups = loadState();
+    const simplified = loadSimplified();
     const container = document.getElementById('groupsContainer');
+
+    document.getElementById('simplifiedToggle').checked = simplified;
 
     if (groups.length === 0) {
       container.innerHTML = '<p class="empty-state">No car groups yet. Select a capacity above and click <strong>Add Car</strong> to get started.</p>';
       return;
     }
 
-    container.innerHTML = `<div class="cars-grid">${groups.map((g, i) => renderCard(g, i + 1)).join('')}</div>`;
+    container.innerHTML = `<div class="cars-grid">${groups.map((g, i) => simplified ? renderSimplifiedCard(g, i + 1) : renderCard(g, i + 1)).join('')}</div>`;
+  }
+
+  function renderSimplifiedCard(group, num) {
+    const used = group.passengers.reduce((s, p) => s + p.count, 0);
+    const remaining = group.capacity - used;
+    const carTheme = LIFE_CARS[(num - 1) % LIFE_CARS.length];
+
+    const familyRows = group.passengers.map((p, i) => `
+      <div class="simplified-family-row">
+        <span class="simplified-family-name">${esc(p.lastName)}<span class="simplified-family-count">(${p.count})</span></span>
+        <button class="btn-delete-passenger" title="Remove ${esc(p.lastName)}" onclick="removePassenger('${group.id}', ${i})">✕</button>
+      </div>
+    `).join('');
+
+    const footerLabel = remaining === 0
+      ? `Car ${num} &mdash; Full`
+      : `Car ${num} &mdash; ${remaining} seat${remaining !== 1 ? 's' : ''} left`;
+
+    return `
+      <div class="car-card simplified" style="border: 2px solid ${carTheme.dark};">
+        <div class="simplified-header" style="background:${carTheme.dark};">
+          <span>${footerLabel}</span>
+          <button class="btn-delete-car" title="Remove car" onclick="removeGroup('${group.id}')" style="color:rgba(255,255,255,.75);">🗑</button>
+        </div>
+        ${group.passengers.length > 0 ? `<div class="simplified-families">${familyRows}</div>` : ''}
+      </div>
+    `;
   }
 
   function renderCard(group, num) {
