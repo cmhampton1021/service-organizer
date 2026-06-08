@@ -330,6 +330,42 @@
       display: flex; align-items: center; justify-content: center;
     }
     .btn-delete-preset:hover { color: #c53030; background: #fff5f5; }
+    .btn-edit-preset {
+      background: none;
+      border: none;
+      color: #a0aec0;
+      cursor: pointer;
+      font-size: .95rem;
+      padding: .25rem .45rem;
+      border-radius: 4px;
+      transition: color .15s, background .15s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .btn-edit-preset:hover { color: #2b6cb0; background: #ebf8ff; }
+    .preset-item.editing { background: #ebf8ff; padding: .4rem .5rem; }
+    .preset-edit-form { display: flex; gap: .4rem; align-items: center; flex: 1; flex-wrap: wrap; }
+    .preset-edit-form input {
+      border: 1px solid #90cdf4;
+      border-radius: 5px;
+      padding: .3rem .55rem;
+      font-size: .88rem;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .preset-edit-form input:focus { border-color: #4299e1; }
+    .input-edit-name { flex: 1 1 100px; min-width: 90px; }
+    .input-edit-cap { width: 70px; }
+    .btn-save-preset {
+      background: #2b6cb0; color: #fff; border: none; border-radius: 5px;
+      padding: .3rem .7rem; font-size: .82rem; font-weight: 600; cursor: pointer;
+      transition: background .15s; white-space: nowrap;
+    }
+    .btn-save-preset:hover { background: #2c5282; }
+    .btn-cancel-edit {
+      background: none; border: 1px solid #cbd5e0; border-radius: 5px; color: #718096;
+      padding: .3rem .6rem; font-size: .82rem; cursor: pointer; transition: background .15s;
+    }
+    .btn-cancel-edit:hover { background: #edf2f7; }
     .preset-add-form { display: flex; gap: .6rem; flex-wrap: wrap; align-items: flex-start; }
     .preset-add-form input {
       border: 1px solid #cbd5e0;
@@ -605,6 +641,38 @@
     renderPresets();
   }
 
+  let editingPresetId = null;
+
+  function startEditPreset(id) {
+    editingPresetId = id;
+    renderPresets();
+    document.getElementById(`edit-name-${id}`)?.focus();
+  }
+
+  function cancelEditPreset() {
+    editingPresetId = null;
+    renderPresets();
+  }
+
+  function saveEditPreset(id) {
+    const nameEl = document.getElementById(`edit-name-${id}`);
+    const capEl = document.getElementById(`edit-cap-${id}`);
+    const errEl = document.getElementById(`edit-err-${id}`);
+    const name = nameEl.value.trim();
+    const capacity = parseInt(capEl.value, 10);
+    errEl.textContent = '';
+    if (!name) { errEl.textContent = 'Name required.'; nameEl.focus(); return; }
+    if (!capacity || capacity < 1) { errEl.textContent = 'Valid seat count required.'; capEl.focus(); return; }
+    const presets = loadPresets();
+    const preset = presets.find(p => p.id === id);
+    if (!preset) return;
+    preset.name = name;
+    preset.capacity = capacity;
+    savePresets(presets);
+    editingPresetId = null;
+    renderPresets();
+  }
+
   function deletePreset(id) {
     savePresets(loadPresets().filter(p => p.id !== id));
     if (selectedPresetId === id) {
@@ -645,12 +713,30 @@
     if (listEl) {
       listEl.innerHTML = presets.length === 0
         ? '<p class="presets-empty">No presets yet. Add one below.</p>'
-        : presets.map(p => `
-          <div class="preset-item">
-            <span class="preset-item-info">${esc(p.name)}<span class="preset-item-cap">(${p.capacity} seats)</span></span>
-            <button class="btn-delete-preset" title="Delete preset" onclick="deletePreset('${p.id}')">✕</button>
-          </div>
-        `).join('');
+        : presets.map(p => {
+          if (p.id === editingPresetId) {
+            return `
+              <div class="preset-item editing">
+                <div class="preset-edit-form">
+                  <input class="input-edit-name" id="edit-name-${p.id}" type="text" value="${esc(p.name)}" placeholder="Name" />
+                  <input class="input-edit-cap" id="edit-cap-${p.id}" type="number" min="1" max="20" value="${p.capacity}" placeholder="Seats" />
+                  <button class="btn-save-preset" onclick="saveEditPreset('${p.id}')">Save</button>
+                  <button class="btn-cancel-edit" onclick="cancelEditPreset()">Cancel</button>
+                  <span class="form-error" id="edit-err-${p.id}"></span>
+                </div>
+              </div>
+            `;
+          }
+          return `
+            <div class="preset-item">
+              <span class="preset-item-info">${esc(p.name)}<span class="preset-item-cap">(${p.capacity} seats)</span></span>
+              <div style="display:flex;gap:.2rem;">
+                <button class="btn-edit-preset" title="Edit preset" onclick="startEditPreset('${p.id}')">✎</button>
+                <button class="btn-delete-preset" title="Delete preset" onclick="deletePreset('${p.id}')">✕</button>
+              </div>
+            </div>
+          `;
+        }).join('');
     }
 
     if (selectEl) {
