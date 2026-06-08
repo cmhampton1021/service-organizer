@@ -282,6 +282,95 @@
       color: #fff;
     }
 
+    /* ── Preset cars panel ──────────────────────────────────────────────── */
+    .presets-panel {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.1);
+      margin-bottom: 1.75rem;
+      overflow: hidden;
+    }
+    .presets-toggle-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .85rem 1.25rem;
+      cursor: pointer;
+      user-select: none;
+      border-bottom: 1px solid transparent;
+      transition: border-color .15s;
+    }
+    .presets-toggle-header.open { border-color: #e2e8f0; }
+    .presets-toggle-header h2 { font-size: .95rem; font-weight: 700; color: #2d3748; }
+    .presets-chevron { font-size: .75rem; color: #718096; transition: transform .2s; }
+    .presets-chevron.open { transform: rotate(180deg); }
+    .presets-body { padding: 1rem 1.25rem 1.25rem; display: none; }
+    .presets-body.open { display: block; }
+    .preset-list { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1rem; }
+    .preset-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .4rem .75rem;
+      background: #f7fafc;
+      border-radius: 6px;
+      font-size: .88rem;
+    }
+    .preset-item-info { font-weight: 600; }
+    .preset-item-cap { color: #718096; margin-left: .4rem; font-weight: 400; }
+    .btn-delete-preset {
+      background: none;
+      border: none;
+      color: #a0aec0;
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: .25rem .45rem;
+      border-radius: 4px;
+      transition: color .15s, background .15s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .btn-delete-preset:hover { color: #c53030; background: #fff5f5; }
+    .preset-add-form { display: flex; gap: .6rem; flex-wrap: wrap; align-items: flex-start; }
+    .preset-add-form input {
+      border: 1px solid #cbd5e0;
+      border-radius: 6px;
+      padding: .4rem .65rem;
+      font-size: .88rem;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .preset-add-form input:focus { border-color: #4299e1; }
+    .input-preset-name { flex: 1 1 140px; min-width: 120px; }
+    .input-preset-cap { width: 80px; }
+    .btn-add-preset {
+      background: #2b6cb0;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: .4rem .9rem;
+      font-size: .88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+      white-space: nowrap;
+    }
+    .btn-add-preset:hover { background: #2c5282; }
+    .presets-empty { color: #a0aec0; font-size: .88rem; font-style: italic; margin-bottom: .75rem; }
+
+    /* ── Preset dropdown in add-car panel ───────────────────────────────── */
+    .add-car-panel select {
+      border: 1px solid #cbd5e0;
+      border-radius: 6px;
+      padding: .45rem .7rem;
+      font-size: .9rem;
+      background: #fff;
+      color: #2d3748;
+      outline: none;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .add-car-panel select:focus { border-color: #4299e1; }
+
     /* ── Simplified view toggle ─────────────────────────────────────────── */
     .toggle-bar {
       display: flex;
@@ -407,8 +496,29 @@
 </header>
 
 <main>
+  <!-- Preset cars management panel -->
+  <div class="presets-panel">
+    <div class="presets-toggle-header" id="presetsHeader" onclick="togglePresetsPanel()">
+      <h2>Preset Cars</h2>
+      <span class="presets-chevron" id="presetsChevron">▼</span>
+    </div>
+    <div class="presets-body" id="presetsBody">
+      <div class="preset-list" id="presetList"></div>
+      <div class="preset-add-form">
+        <input class="input-preset-name" type="text" id="presetNameInput" placeholder="Preset name (e.g. Dad's Van)" />
+        <input class="input-preset-cap" type="number" id="presetCapInput" placeholder="Seats" min="1" max="20" />
+        <button class="btn-add-preset" onclick="handleAddPreset()">Save Preset</button>
+        <span class="form-error" id="presetErr"></span>
+      </div>
+    </div>
+  </div>
+
   <div class="add-car-panel">
-    <label>Car capacity:</label>
+    <label>Add car:</label>
+    <select id="presetSelect" onchange="handlePresetSelect(this.value)">
+      <option value="">— or pick a preset —</option>
+    </select>
+    <label style="margin-left:.25rem;">Capacity:</label>
     <div class="capacity-btns" id="capacityBtns"></div>
     <button class="btn-primary" id="btnAddCar" onclick="handleAddCar()" disabled>Add Car</button>
   </div>
@@ -426,8 +536,10 @@
 <script>
   const STORAGE_KEY = 'carGroups';
   const SIMPLIFIED_KEY = 'simplifiedView';
+  const PRESETS_KEY = 'carPresets';
   const CAPACITIES = [2, 4, 5, 6, 7, 8];
   let selectedCapacity = null;
+  let selectedPresetId = null;
 
   function loadSimplified() {
     try { return JSON.parse(localStorage.getItem(SIMPLIFIED_KEY)) === true; }
@@ -465,6 +577,89 @@
     '#76e4f7', // cyan
   ];
 
+  // ── Presets state ────────────────────────────────────────────────────────
+
+  function loadPresets() {
+    try { return JSON.parse(localStorage.getItem(PRESETS_KEY)) || []; }
+    catch { return []; }
+  }
+
+  function savePresets(presets) {
+    localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
+  }
+
+  function handleAddPreset() {
+    const nameEl = document.getElementById('presetNameInput');
+    const capEl = document.getElementById('presetCapInput');
+    const errEl = document.getElementById('presetErr');
+    const name = nameEl.value.trim();
+    const capacity = parseInt(capEl.value, 10);
+    errEl.textContent = '';
+    if (!name) { errEl.textContent = 'Enter a preset name.'; nameEl.focus(); return; }
+    if (!capacity || capacity < 1) { errEl.textContent = 'Enter a valid seat count.'; capEl.focus(); return; }
+    const presets = loadPresets();
+    presets.push({ id: uid(), name, capacity });
+    savePresets(presets);
+    nameEl.value = '';
+    capEl.value = '';
+    renderPresets();
+  }
+
+  function deletePreset(id) {
+    savePresets(loadPresets().filter(p => p.id !== id));
+    if (selectedPresetId === id) {
+      selectedPresetId = null;
+      selectedCapacity = null;
+      document.getElementById('btnAddCar').disabled = true;
+      document.querySelectorAll('.capacity-btn').forEach(b => b.classList.remove('selected'));
+    }
+    renderPresets();
+  }
+
+  function handlePresetSelect(id) {
+    const presets = loadPresets();
+    const preset = presets.find(p => p.id === id);
+    if (!preset) {
+      selectedPresetId = null;
+      return;
+    }
+    selectedPresetId = preset.id;
+    selectCapacity(preset.capacity);
+  }
+
+  function togglePresetsPanel() {
+    const body = document.getElementById('presetsBody');
+    const header = document.getElementById('presetsHeader');
+    const chevron = document.getElementById('presetsChevron');
+    const isOpen = body.classList.contains('open');
+    body.classList.toggle('open', !isOpen);
+    header.classList.toggle('open', !isOpen);
+    chevron.classList.toggle('open', !isOpen);
+  }
+
+  function renderPresets() {
+    const presets = loadPresets();
+    const listEl = document.getElementById('presetList');
+    const selectEl = document.getElementById('presetSelect');
+
+    if (listEl) {
+      listEl.innerHTML = presets.length === 0
+        ? '<p class="presets-empty">No presets yet. Add one below.</p>'
+        : presets.map(p => `
+          <div class="preset-item">
+            <span class="preset-item-info">${esc(p.name)}<span class="preset-item-cap">(${p.capacity} seats)</span></span>
+            <button class="btn-delete-preset" title="Delete preset" onclick="deletePreset('${p.id}')">✕</button>
+          </div>
+        `).join('');
+    }
+
+    if (selectEl) {
+      const current = selectEl.value;
+      selectEl.innerHTML = '<option value="">— or pick a preset —</option>' +
+        presets.map(p => `<option value="${p.id}" ${p.id === current ? 'selected' : ''}>${esc(p.name)} (${p.capacity} seats)</option>`).join('');
+    }
+  }
+
   // ── State ────────────────────────────────────────────────────────────────
 
   function loadState() {
@@ -482,9 +677,9 @@
 
   // ── Mutations ────────────────────────────────────────────────────────────
 
-  function addGroup(capacity) {
+  function addGroup(capacity, name) {
     const groups = loadState();
-    groups.push({ id: uid(), capacity, passengers: [] });
+    groups.push({ id: uid(), capacity, name: name || null, passengers: [] });
     saveState(groups);
     render();
   }
@@ -572,10 +767,17 @@
 
   function handleAddCar() {
     if (!selectedCapacity) return;
-    addGroup(selectedCapacity);
+    let presetName = null;
+    if (selectedPresetId) {
+      const preset = loadPresets().find(p => p.id === selectedPresetId);
+      if (preset) presetName = preset.name;
+    }
+    addGroup(selectedCapacity, presetName);
     selectedCapacity = null;
+    selectedPresetId = null;
     document.querySelectorAll('.capacity-btn').forEach(b => b.classList.remove('selected'));
     document.getElementById('btnAddCar').disabled = true;
+    document.getElementById('presetSelect').value = '';
   }
 
   // ── SVG helpers ──────────────────────────────────────────────────────────
@@ -681,9 +883,10 @@
       `;
     }).join('');
 
+    const cardLabel = group.name || `Car ${num}`;
     const footerLabel = remaining === 0
-      ? `Car ${num} &mdash; Full`
-      : `Car ${num} &mdash; ${remaining} seat${remaining !== 1 ? 's' : ''} left`;
+      ? `${cardLabel} &mdash; Full`
+      : `${cardLabel} &mdash; ${remaining} seat${remaining !== 1 ? 's' : ''} left`;
 
     const addForm = remaining === 0 ? '' : `
       <div class="add-passenger-form" style="background:#f7fafc;" id="form-${group.id}">
@@ -742,9 +945,10 @@
       </div>
     `;
 
+    const cardLabel = group.name || `Car ${num}`;
     const footerLabel = isFull
-      ? `Car ${num} &mdash; ${group.capacity} seats &mdash; All Aboard! 🎉`
-      : `Car ${num} &mdash; ${group.capacity} seats &mdash; ${remaining} seat${remaining !== 1 ? 's' : ''} remaining`;
+      ? `${cardLabel} &mdash; ${group.capacity} seats &mdash; All Aboard! 🎉`
+      : `${cardLabel} &mdash; ${group.capacity} seats &mdash; ${remaining} seat${remaining !== 1 ? 's' : ''} remaining`;
 
     return `
       <div class="car-card" style="border: 2px solid ${carTheme.dark};">
@@ -792,6 +996,7 @@
 
   // ── Init ─────────────────────────────────────────────────────────────────
   initCapacityBtns();
+  renderPresets();
   render();
 </script>
 </body>
