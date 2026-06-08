@@ -634,6 +634,9 @@
     if (!name) { errEl.textContent = 'Enter a preset name.'; nameEl.focus(); return; }
     if (!capacity || capacity < 1) { errEl.textContent = 'Enter a valid seat count.'; capEl.focus(); return; }
     const presets = loadPresets();
+    if (presets.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+      errEl.textContent = 'A preset with that name already exists.'; nameEl.focus(); return;
+    }
     presets.push({ id: uid(), name, capacity });
     savePresets(presets);
     nameEl.value = '';
@@ -664,6 +667,9 @@
     if (!name) { errEl.textContent = 'Name required.'; nameEl.focus(); return; }
     if (!capacity || capacity < 1) { errEl.textContent = 'Valid seat count required.'; capEl.focus(); return; }
     const presets = loadPresets();
+    if (presets.some(p => p.id !== id && p.name.toLowerCase() === name.toLowerCase())) {
+      errEl.textContent = 'A preset with that name already exists.'; nameEl.focus(); return;
+    }
     const preset = presets.find(p => p.id === id);
     if (!preset) return;
     preset.name = name;
@@ -740,9 +746,16 @@
     }
 
     if (selectEl) {
+      const usedPresetIds = new Set(loadState().map(g => g.presetId).filter(Boolean));
       const current = selectEl.value;
       selectEl.innerHTML = '<option value="">— or pick a preset —</option>' +
-        presets.map(p => `<option value="${p.id}" ${p.id === current ? 'selected' : ''}>${esc(p.name)} (${p.capacity} seats)</option>`).join('');
+        presets.map(p => {
+          const used = usedPresetIds.has(p.id);
+          return `<option value="${p.id}" ${p.id === current ? 'selected' : ''} ${used ? 'disabled' : ''}>${esc(p.name)} (${p.capacity} seats)${used ? ' — already added' : ''}</option>`;
+        }).join('');
+      if (usedPresetIds.has(current) && current !== '') {
+        selectEl.value = '';
+      }
     }
   }
 
@@ -763,11 +776,12 @@
 
   // ── Mutations ────────────────────────────────────────────────────────────
 
-  function addGroup(capacity, name) {
+  function addGroup(capacity, name, presetId) {
     const groups = loadState();
-    groups.push({ id: uid(), capacity, name: name || null, passengers: [] });
+    groups.push({ id: uid(), capacity, name: name || null, presetId: presetId || null, passengers: [] });
     saveState(groups);
     render();
+    renderPresets();
   }
 
   function addPassenger(groupId, lastName, count) {
@@ -825,6 +839,7 @@
     const groups = loadState().filter(g => g.id !== groupId);
     saveState(groups);
     render();
+    renderPresets();
   }
 
   function clearSession() {
@@ -858,7 +873,7 @@
       const preset = loadPresets().find(p => p.id === selectedPresetId);
       if (preset) presetName = preset.name;
     }
-    addGroup(selectedCapacity, presetName);
+    addGroup(selectedCapacity, presetName, selectedPresetId);
     selectedCapacity = null;
     selectedPresetId = null;
     document.querySelectorAll('.capacity-btn').forEach(b => b.classList.remove('selected'));
