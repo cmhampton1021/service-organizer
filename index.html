@@ -12,7 +12,11 @@
       background: #f0f4f8;
       color: #1a202c;
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
+
+    main { flex: 1; }
 
     header {
       background: #2b6cb0;
@@ -38,7 +42,30 @@
     }
     .btn-clear:hover { background: rgba(255,255,255,.25); }
 
-    main { max-width: 900px; margin: 0 auto; padding: 1.5rem 1.5rem 12rem; }
+    main { max-width: 900px; margin: 0 auto; padding: 1.5rem 1.5rem 8rem; }
+
+    .disclaimer {
+      background: #eee;
+      border-top: 1px solid #ccc;
+      padding: 2rem;
+      font-size: 0.75rem;
+      line-height: 1.125rem;
+      margin-top: 2rem;
+    }
+
+    footer {
+      background: #2b6cb0;
+      color: rgba(255,255,255,.85);
+      text-align: center;
+      padding: .75rem 1rem;
+      font-size: .8rem;
+    }
+    footer a {
+      color: rgba(255,255,255,.85);
+      text-decoration: underline;
+      margin: 0 .5rem;
+    }
+    footer a:hover { color: #fff; }
 
     /* Add car panel */
     .add-car-panel {
@@ -697,5 +724,13 @@
 </main>
 
 <script src="app.js"></script>
+<div class="disclaimer">
+  Please Note: This application is not affiliated with JW.org or the Watchtower Bible and Tract Society. This application does not replace any official application or website. It does not contain any 'spiritual food' and does not gather any personal data from you. All data used in this application is stored exclusively on your device.
+</div>
+<footer>
+  <span>© 2026 Red Oak Media, LLC. All rights reserved.</span>
+  <a href="privacy.html" rel="noopener">Privacy Policy</a>
+  <a href="license.html" rel="noopener">License</a>
+</footer>
 </body>
 </html>
