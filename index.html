@@ -413,7 +413,10 @@
       align-items: center;
       gap: .6rem;
       margin-bottom: 1.25rem;
+      justify-content: space-between;
     }
+    .toggle-bar-left { display: flex; align-items: center; gap: .6rem; }
+    .total-count { font-size: .88rem; font-weight: 600; color: #4a5568; }
     .toggle-label { font-size: .88rem; font-weight: 600; color: #4a5568; user-select: none; cursor: pointer; }
     .toggle-switch {
       position: relative;
@@ -559,12 +562,15 @@
     <button class="btn-primary" id="btnAddCar" onclick="handleAddCar()" disabled>Add Car</button>
   </div>
   <div class="toggle-bar">
-    <label class="toggle-switch" title="Simplified view">
-      <input type="checkbox" id="simplifiedToggle" onchange="handleToggleChange(this.checked)" />
-      <div class="toggle-track"></div>
-      <div class="toggle-thumb"></div>
-    </label>
-    <span class="toggle-label" onclick="document.getElementById('simplifiedToggle').click()">Simplified view</span>
+    <div class="toggle-bar-left">
+      <label class="toggle-switch" title="Simplified view">
+        <input type="checkbox" id="simplifiedToggle" onchange="handleToggleChange(this.checked)" />
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
+      <span class="toggle-label" onclick="document.getElementById('simplifiedToggle').click()">Simplified view</span>
+    </div>
+    <span class="total-count" id="totalCount"></span>
   </div>
   <div id="groupsContainer"></div>
 </main>
@@ -952,6 +958,10 @@
     const container = document.getElementById('groupsContainer');
 
     document.getElementById('simplifiedToggle').checked = simplified;
+
+    const totalPeople = groups.reduce((s, g) => s + g.passengers.reduce((ps, p) => ps + p.count, 0), 0);
+    const totalEl = document.getElementById('totalCount');
+    totalEl.textContent = groups.length > 0 ? `Total: ${totalPeople}` : '';
 
     if (groups.length === 0) {
       container.innerHTML = '<p class="empty-state">No car groups yet. Select a capacity above and click <strong>Add Car</strong> to get started.</p>';
